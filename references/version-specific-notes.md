@@ -303,7 +303,8 @@ params.expect(user: [:name, :email])
 
 ## Adding Support for a New Rails Version
 
-When Rails X.Y is released, extend this document by adding a new section:
+When Rails X.Y is released, follow `maintainers/add-new-rails-version.md` first.
+Then extend this document by adding a new section:
 
 ```markdown
 ## Rails (X-1).(Y-1 or 0) → X.Y

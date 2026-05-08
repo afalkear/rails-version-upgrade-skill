@@ -11,14 +11,15 @@ description: >-
 
 # Rails Version Upgrade
 
-Upgrade a Ruby on Rails application safely by following a battle-tested,
-sequential process derived from the official Rails upgrade guides and
-FastRuby.io's methodology (60,000+ hours of real upgrade work).
+Upgrade a Ruby on Rails application safely by following a sequential process
+derived from the official Rails upgrade guides and FastRuby.io's methodology.
 
 ## Core Principles
 
-1. **Never skip versions.** Always upgrade one minor version at a time:
-   6.0 → 6.1 → 7.0 → 7.1 → 7.2 → 8.0 → 8.1.
+1. **Never skip versions.** Always compute the path from
+   `data/rails_versions.yml` and upgrade one minor version at a time. If the
+   target is not in the graph, stop and follow
+   `maintainers/add-new-rails-version.md` before proceeding.
 2. **Tests first.** A passing test suite before the upgrade is non-negotiable.
    Aim for ≥80% coverage. The suite must stay green after each hop.
 3. **Dual boot.** Run the app against both the current and target Rails version
@@ -30,11 +31,15 @@ FastRuby.io's methodology (60,000+ hours of real upgrade work).
    the current version as a hard requirement, not optional hygiene.
 6. **Upgrade Ruby and Rails separately.** First reach the minimum Ruby version
    required by the target Rails, then upgrade Rails.
+7. **Separate required upgrade work from optional modernization.** Do not migrate
+   asset pipeline, jobs, cache, cable, authentication, or deployment tooling as
+   part of the Rails bump unless the user explicitly asks for that scope.
 
 ## Core Workflow
 
 1. **Assess** – establish test coverage baseline, identify the current and
-   target versions, map the sequential hop path.
+   target versions, classify the app surfaces, and map the sequential hop path
+   from `data/rails_versions.yml`.
 2. **Align current defaults** – ensure `config.load_defaults` matches the
    running Rails version; work through `new_framework_defaults_X_Y.rb`.
 3. **Fix deprecations** – run the full suite, collect every
@@ -68,11 +73,17 @@ FastRuby.io's methodology (60,000+ hours of real upgrade work).
   block and recommend writing tests (or acceptance criteria) first.
 - Dual-boot conditionals (`NextRails.next?`) are intentional temporary debt;
   document them and remove them after promotion.
+- Treat Rails 8 defaults/features such as Propshaft, Solid Queue, Solid Cache,
+  Solid Cable, the authentication generator, Kamal, and Thruster as optional
+  modernization. Keep them out of the framework upgrade PR unless requested.
+- Never blindly accept `bin/rails app:update` overwrites. Preserve local
+  customizations and categorize each diff before applying it.
 
 ## Load References Selectively
 
 Open only the file needed for the current step.
 
+- Version graph and Ruby compatibility gates: `data/rails_versions.yml`
 - Step-by-step universal process: `references/upgrade-playbook.md`
 - Breaking changes per version: `references/version-specific-notes.md`
 - Gem / dependency management: `references/gem-compatibility.md`
@@ -80,6 +91,7 @@ Open only the file needed for the current step.
 - Fixing a red test suite: `references/broken-build-triage.md`
 - Smoke script and coverage targets: `references/smoke-and-validation.md`
 - Risk matrix (planning / triage): `references/risk-matrix.md`
+- Maintainer workflow for future Rails versions: `maintainers/add-new-rails-version.md`
 
 Use `references/INDEX.md` for the full catalog.
 

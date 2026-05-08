@@ -1,5 +1,14 @@
 # References Index
 
+## data/rails_versions.yml
+Version graph, Ruby compatibility gates, per-hop guide pointers, and optional
+modernization categories. Use this before planning an upgrade path.
+
+## maintainers/add-new-rails-version.md
+Maintainer workflow for adding Rails 8.2, 9.0, or later support without editing
+the main skill every time. Use when the requested target version is not present
+in `data/rails_versions.yml`.
+
 ## upgrade-playbook.md
 Universal step-by-step upgrade process: pre-upgrade assessment, dual-boot
 setup, version bump, `app:update`, gem compatibility, broken build, defaults

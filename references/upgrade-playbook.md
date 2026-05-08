@@ -14,6 +14,11 @@ The same steps apply regardless of whether you are moving from 6.1→7.0 or
 current → next_minor → … → target
 ```
 
+Use `data/rails_versions.yml` as the source of truth for the version graph,
+minimum Ruby versions, and per-hop guide pointers. Do not hard-code a new path
+from memory. If the target version is not present in the graph, stop and follow
+`maintainers/add-new-rails-version.md` before giving upgrade instructions.
+
 Examples:
 - 6.0 → 6.1 → 7.0 → 7.1 → 7.2 → 8.0
 - 7.2 → 8.0
@@ -67,7 +72,48 @@ https://www.fastruby.io/blog/ruby/rails/versions/compatibility-table.html
 If the current Ruby is below the minimum for the target Rails, upgrade Ruby
 **first** (in its own PR/branch), then proceed with the Rails upgrade.
 
-### 0.5 Inventory application surfaces
+### 0.5 Classify application surfaces
+
+Create a concise preflight report before changing dependencies. Include:
+
+| Surface | What to identify | Common files / commands |
+|---------|------------------|--------------------------|
+| Rails | Current Rails version, target Rails version, hop path | `bin/rails runner 'puts Rails.version'`, `Gemfile.lock` |
+| Ruby | Current Ruby, required Ruby for next hop, required Ruby for final target | `.ruby-version`, `ruby -v`, `data/rails_versions.yml` |
+| Bundler | Bundler version and lockfile platform constraints | `bundle -v`, `Gemfile.lock` |
+| Database | Adapter and version assumptions | `config/database.yml`, `bin/rails db:version` |
+| Jobs | Active Job backend and direct worker libraries | `config.active_job.queue_adapter`, `sidekiq`, `delayed_job`, `resque`, `solid_queue` |
+| Assets | Asset pipeline and JavaScript bundling | `sprockets-rails`, `propshaft`, `webpacker`, `jsbundling-rails`, `importmap-rails` |
+| CSS | CSS build stack | `sassc-rails`, `dartsass-rails`, `tailwindcss-rails`, `cssbundling-rails` |
+| Tests | Test framework and system-test driver | `test/`, `spec/`, `capybara`, `selenium`, `cuprite` |
+| Deploy | Production runtime and release process | Dockerfile, Heroku, Railway, Kamal, Procfile, CI workflows |
+| Cache/Cable | Cache store and Action Cable adapter | `config.cache_store`, `config.action_cable.adapter` |
+| Storage | Uploads, variants, previews, direct uploads | Active Storage, CarrierWave, Shrine, Paperclip |
+
+Preflight report template:
+
+```markdown
+## Rails Upgrade Preflight
+
+- Current Rails:
+- Target Rails:
+- Hop path:
+- Current Ruby:
+- Ruby action required:
+- Test framework:
+- Test status:
+- Database adapter:
+- Job backend:
+- Asset stack:
+- CSS stack:
+- Deploy target:
+- Cache store:
+- Cable adapter:
+- High-risk findings:
+- Optional modernization explicitly out of scope:
+```
+
+### 0.6 Inventory application commands
 
 Before touching any gem versions, run an application inventory to surface the
 exact places where version changes commonly cause breakage:
@@ -93,7 +139,7 @@ Also verify your autoload path layout before crossing a major boundary:
 bin/rails runner 'pp Rails.autoloaders.main.dirs; pp Rails.autoloaders.once.dirs'
 ```
 
-### 0.6 Scan for gem incompatibilities
+### 0.7 Scan for gem incompatibilities
 
 ```bash
 gem install next_rails
@@ -140,6 +186,19 @@ Extend the array as you identify and commit to eliminating each warning.
 Each deprecation warning is a documented breaking change in the next version.
 Work through them systematically. See `references/version-specific-notes.md`
 for the exact changes by version.
+
+Track deprecations as a burn-down list, not an informal log scrape:
+
+```markdown
+## Deprecation Burn-Down
+
+| Warning | File / line | Rails removal version | Source | Fix | Status |
+|---------|-------------|-----------------------|--------|-----|--------|
+```
+
+Each row should include the exact warning text or pattern, where it was found,
+why it matters, and whether the warning is fixed, intentionally deferred, or a
+false positive.
 
 ### 1.3 Verify the suite is still green
 
@@ -346,14 +405,25 @@ THOR_DIFF="git diff --no-index --color" \
   BUNDLE_GEMFILE=Gemfile.next bundle exec rails app:update
 ```
 
-Do not blindly accept all changes. Common safe accepts:
-- New initializer files
-- Minor `routes.rb` boilerplate changes
+Do not blindly accept all changes. Categorize every generated diff before
+applying it:
 
-Common changes to review manually:
-- `config/application.rb` — may overwrite custom settings
-- `config/environments/production.rb` — security/caching defaults may change
-- `config/database.yml` — new adapter options may appear
+| Category | Meaning | Examples |
+|----------|---------|----------|
+| Accept usually | New generated files or harmless framework boilerplate | `new_framework_defaults_X_Y.rb`, comments, default ignore entries |
+| Review carefully | Framework config that can change runtime behavior | `config/application.rb`, environment files, initializers |
+| Preserve local customization | Existing app-specific config must not be overwritten | custom middleware, host config, logging, database settings |
+| App-specific decision | Correct answer depends on deployment or architecture | cache store, job adapter, asset pipeline config |
+| Obsolete file | Generated file may no longer be used | stale framework defaults, removed boot-time shims |
+
+Record the review in this format when the diff is non-trivial:
+
+```markdown
+## app:update Diff Review
+
+| File | Category | Decision | Reason | Follow-up |
+|------|----------|----------|--------|-----------|
+```
 
 If your app uses JavaScript bundling via `jsbundling-rails`, also align the
 Rails JavaScript packages after the version bump:
@@ -364,6 +434,31 @@ BUNDLE_GEMFILE=Gemfile.next bundle exec rails javascript:install
 
 Commit the result of `app:update` in its own commit before making further
 changes.
+
+---
+
+## Required Upgrade vs Optional Modernization
+
+Keep the Rails version upgrade narrow by default.
+
+Required for a framework upgrade:
+- Rails gem bump for the current hop.
+- Ruby compatibility for the current hop.
+- Boot fixes and removed/deprecated API fixes.
+- `bin/rails app:update` review.
+- Framework defaults migration after the target code is stable.
+- Gem compatibility updates needed for the Rails hop.
+
+Optional modernization, only when explicitly requested:
+- Sprockets → Propshaft.
+- Redis-backed jobs → Solid Queue.
+- Redis-backed cache → Solid Cache.
+- Redis-backed Action Cable → Solid Cable.
+- Existing authentication → Rails authentication generator.
+- Existing deploy stack → Kamal or Thruster.
+
+If optional modernization is tempting because Rails introduced a new default,
+document it as a follow-up instead of mixing it into the upgrade PR.
 
 ---
 

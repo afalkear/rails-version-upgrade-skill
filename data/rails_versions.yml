@@ -1,0 +1,56 @@
+# Rails minor-version graph and compatibility gates used by this skill.
+# Keep this data small and factual. Put upgrade procedure details in references/.
+
+rails_versions:
+  "6.0":
+    next: "6.1"
+    ruby_min: "2.5.0"
+    guide: "references/version-specific-notes.md#rails-60--61"
+    official_upgrade_guide: "https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-6-0-to-rails-6-1"
+  "6.1":
+    next: "7.0"
+    ruby_min: "2.5.0"
+    target_ruby_min: "2.7.0"
+    guide: "references/version-specific-notes.md#rails-61--70"
+    official_upgrade_guide: "https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-6-1-to-rails-7-0"
+  "7.0":
+    next: "7.1"
+    ruby_min: "2.7.0"
+    guide: "references/version-specific-notes.md#rails-70--71"
+    official_upgrade_guide: "https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-7-0-to-rails-7-1"
+  "7.1":
+    next: "7.2"
+    ruby_min: "2.7.0"
+    target_ruby_min: "3.1.0"
+    guide: "references/version-specific-notes.md#rails-71--72"
+    official_upgrade_guide: "https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-7-1-to-rails-7-2"
+  "7.2":
+    next: "8.0"
+    ruby_min: "3.1.0"
+    target_ruby_min: "3.2.0"
+    guide: "references/version-specific-notes.md#rails-72--80"
+    official_upgrade_guide: "https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-7-2-to-rails-8-0"
+  "8.0":
+    next: "8.1"
+    ruby_min: "3.2.0"
+    guide: "references/version-specific-notes.md#rails-80--81"
+    official_upgrade_guide: "https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-8-0-to-rails-8-1"
+  "8.1":
+    next:
+    ruby_min: "3.2.0"
+    guide: "references/version-specific-notes.md#rails-80--81"
+
+upgrade_path_rules:
+  - "Upgrade one minor version at a time by following each node's next value."
+  - "If the requested target is newer than the graph, stop and consult maintainers/add-new-rails-version.md."
+  - "Upgrade Ruby before Rails when the next hop's target_ruby_min exceeds the app's current Ruby."
+  - "Target the latest patch release inside each minor line; do not jump to an unrequested newer minor."
+
+optional_modernizations:
+  rails_8:
+    - "Sprockets to Propshaft"
+    - "Redis-backed jobs to Solid Queue"
+    - "Redis-backed cache to Solid Cache"
+    - "Redis-backed Action Cable to Solid Cable"
+    - "Existing authentication to the Rails authentication generator"
+    - "Existing deployment tooling to Kamal or Thruster"
