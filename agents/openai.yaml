@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rails Version Upgrade"
+  short_description: "Upgrade a Rails app from one version to another — assessment, dual-boot, defaults migration, gem compatibility, broken-build triage."
+  default_prompt: "Use $rails-version-upgrade to upgrade this Rails application to the next version."
