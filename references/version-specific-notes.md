@@ -200,6 +200,8 @@ const fileInputSelector = Rails.fileInputSelector
 
 **Official guide**: https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-7-2-to-rails-8-0
 
+**Focused playbook**: `references/rails-7-2-to-8-0.md`
+
 **Minimum Ruby**: 3.2.0
 
 ### New defaults introduced in 8.0

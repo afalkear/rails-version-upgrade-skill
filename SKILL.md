@@ -85,6 +85,7 @@ Open only the file needed for the current step.
 
 - Version graph and Ruby compatibility gates: `data/rails_versions.yml`
 - Step-by-step universal process: `references/upgrade-playbook.md`
+- Rails 7.2 → 8.0 focused playbook: `references/rails-7-2-to-8-0.md`
 - Breaking changes per version: `references/version-specific-notes.md`
 - Gem / dependency management: `references/gem-compatibility.md`
 - `config.load_defaults` migration: `references/framework-defaults.md`

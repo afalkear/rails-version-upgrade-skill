@@ -15,6 +15,12 @@ setup, version bump, `app:update`, gem compatibility, broken build, defaults
 migration, and promotion. Use this as the primary execution guide for any
 Rails version upgrade.
 
+## rails-7-2-to-8-0.md
+Focused single-hop playbook for Rails 7.2 to Rails 8.0. Covers Ruby 3.2 gating,
+Rails 8.0 removed APIs, `app:update`, Rails 8.0 defaults, optional Rails 8
+modernization boundaries, validation, and common failure patterns. Use this
+whenever the current app is already on Rails 7.2 and the target is Rails 8.0.
+
 ## version-specific-notes.md
 Per-version breaking changes, required actions, and new features for each
 minor Rails version from 6.0 through 8.1. Includes a template section for
