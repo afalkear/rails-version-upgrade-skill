@@ -306,10 +306,59 @@ RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 \
 - [ ] Authentication, sessions, password reset, and signed/encrypted values work.
 - [ ] Critical request/API flows pass manually or via system/request tests.
 - [ ] Background jobs that enqueue inside transactions are verified end-to-end.
+- [ ] Persisted background jobs from the old bundle still deserialize and run.
 - [ ] If Action Cable is used, broadcasts work across more than one process.
 - [ ] If Active Storage is used, upload, download, variants, and previews work.
+- [ ] Cache-backed paths do not store or load framework internals such as
+      `ActiveRecord::Relation` objects.
 - [ ] Brakeman runs clean enough for the app's CI policy.
 - [ ] Staging/canary deploy succeeds before `config.load_defaults 8.0` is flipped.
+- [ ] Production monitoring is checked after deploy for incidents scoped to the
+      new revision.
+
+### Lockfile and runtime sanity checks
+
+After the Rails 8.0 bundle resolves, verify that the lockfile did not keep
+stale Rack 2-era dependencies through transitive constraints.
+
+```bash
+bundle exec rails runner 'puts "Rails #{Rails.version}"; puts "Rack #{Rack.release}"; puts "Bundler gemfile=#{Bundler.default_gemfile}"'
+bundle exec ruby -e 'puts Bundler.locked_gems.specs.values_at("rails", "rack", "rack-session", "rackup", "rack-cors").compact.map { |s| "#{s.name} #{s.version}" }'
+```
+
+Expected shape for a typical Rails 8.0/Rack 3 app:
+
+- `rails 8.0.x`
+- `rack 3.2.x`
+- `rack-session 2.1.x`
+- `rackup 2.3.x`
+- `rack-cors 3.0.x` if the app uses CORS middleware
+
+If the main lockfile still contains Rack 2-era versions after promotion, run a
+targeted update of the Rack family and any direct gems constraining it. Do not
+run an unrestricted `bundle update`.
+
+```bash
+bundle update rails rack rack-session rackup rack-cors
+```
+
+### Persisted data compatibility checks
+
+Rails upgrades do not only execute new code; they also read data written by the
+old bundle. Validate persisted objects that include framework metadata.
+
+- Background jobs: inspect serialized Active Job payloads for `locale`,
+  `timezone`, GlobalID arguments, and job class names. Rails restores locale and
+  timezone before `perform`, so invalid values such as `en-US` or legacy
+  timezone aliases can fail before app code runs. Normalize regional locales to
+  app-supported locales (`en-US -> en`, `pt-BR -> pt`) or discard safe no-op jobs
+  deliberately.
+- Cache entries: do not cache `ActiveRecord::Relation` objects or other Rails
+  internals across the upgrade. Cache primitive IDs or plain serialized values,
+  then re-query under the new bundle.
+- Webhooks: filter non-actionable events at the HTTP boundary when safe, instead
+  of enqueueing jobs that immediately no-op. This reduces retry noise when
+  serialized job metadata is incompatible.
 
 ---
 
@@ -326,6 +375,12 @@ RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 \
 | Fresh CI database no longer replays all migrations | Rails 8 schema-first `db:migrate` behavior | Use `db:prepare` normally; use `db:migrate:reset` only when full replay is required |
 | Regex-heavy code raises timeout | `Regexp.timeout = 1` default | Optimize regex, bound input size, or set a narrower timeout policy deliberately |
 | Jobs behave differently around transactions | Rails 7.2/8.0 transaction enqueue semantics | Make adapter explicit in tests and move side effects to after-commit semantics |
+| Background job fails before `perform` with `I18n::InvalidLocale` | Persisted Active Job payload has a regional or unsupported locale | Normalize job locales globally or repair/discard the affected queued jobs |
+| Background job fails before `perform` with an invalid timezone | Persisted Active Job payload has a legacy timezone alias | Normalize job timezones during Active Job serialization/deserialization |
+| Production cache raises deserialization or connection-pool errors | Cached relation/framework object written by old bundle | Stop caching relations; cache primitive IDs or plain values and re-query |
+| ActiveAdmin resource rejects permitted params after upgrade | Nested permit list accidentally passed as a single array | Splat/flatten permit lists deliberately; avoid `<<` when concatenation is intended |
+| `LoadError` mentions `active_support/proxy_object` or `active_support/basic_object` | Older gem requires ActiveSupport files removed in Rails 8 | Update the gem; `jbuilder` older than the Rails 8-compatible line is a common cause |
+| Groupdate `group_by_week` fails or `.top` is missing | Old Groupdate breaks on ActiveRecord 8; newer Groupdate removed old convenience APIs | Update Groupdate and replace `.top(column, n)` with explicit `group/order/limit/count` |
 
 ---
 
@@ -334,9 +389,32 @@ RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 \
 Promote only after the Rails 8.0 dual-boot suite is green.
 
 1. Move the Rails 8.0 constraint from `Gemfile.next` to `Gemfile`.
-2. Run `bundle update rails` if needed to reconcile `Gemfile.lock`.
-3. Remove temporary `NextRails.next?` branches and `Gemfile.next` files.
-4. Keep `config.load_defaults 7.2` until the framework-only upgrade has been
+2. Run targeted `bundle update` commands as needed to reconcile `Gemfile.lock`.
+3. Verify the promoted main lockfile has Rails 8 and Rack 3-compatible versions.
+4. Remove temporary `NextRails.next?` branches and `Gemfile.next` files.
+5. Remove deployment build args or environment variables that still point at
+   `Gemfile.next`.
+6. Keep `config.load_defaults 7.2` until the framework-only upgrade has been
    stable in staging/canary.
-5. Enable Rails 8.0 defaults one at a time in a follow-up defaults PR.
-6. Remove temporary compatibility pins and shims once production is stable.
+7. Enable Rails 8.0 defaults one at a time in a follow-up defaults PR.
+8. Remove temporary compatibility pins and shims once production is stable.
+
+Before the first production deploy without dual boot, check both the repository
+and the deployment platform for stale `BUNDLE_GEMFILE` configuration.
+
+```bash
+git grep -nE 'BUNDLE_GEMFILE|Gemfile.next' -- . ':!.git'
+env | grep BUNDLE_GEMFILE
+```
+
+Bundler always respects `ENV["BUNDLE_GEMFILE"]`. If the platform still injects
+`BUNDLE_GEMFILE=/app/Gemfile.next` or `/rails/Gemfile.next` after the file is
+deleted, migrations and workers will fail with `Bundler::GemfileNotFound` even
+though the Dockerfile or app boot code defaults to `Gemfile`.
+
+After deploy, inspect production monitoring by revision. Look specifically for:
+
+- delayed jobs retried from before the promotion
+- cache deserialization failures
+- malformed Rack 3 request parsing errors
+- webhook jobs that can be safely discarded or filtered earlier

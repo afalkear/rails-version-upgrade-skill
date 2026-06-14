@@ -187,10 +187,31 @@ end
 | `ransack` | Compatible; check major version vs Rails version matrix |
 | `aasm` | Compatible (≥ 5.x) |
 | `scenic` | Compatible |
-| `acts-as-taggable-on` | Compatible (≥ 9.x for Rails 7+) |
+| `acts-as-taggable-on` | Rails 8 requires a compatible major; `12.x` supports Rails 8.0 |
 | `pg` | Compatible (≥ 1.x) |
 | `redis` | Compatible; `redis` v5 changed the API — audit usages |
 | `puma` | Compatible (≥ 5.x); bridge family `7.2.x`, newest `8.0.x`; set thread counts explicitly |
+
+### Rails 8.0 notes from production upgrades
+
+| Gem | Rails 8 symptom | Action |
+|-----|-----------------|--------|
+| `jbuilder` | Boot fails with `LoadError` for `active_support/proxy_object` or `active_support/basic_object` | Update to a Rails 8-compatible release such as `2.15.x` |
+| `groupdate` | `group_by_week` can fail on ActiveRecord 8; old `.top(column, limit)` convenience usage may be unavailable after updating | Update to a Rails 8-compatible release such as `6.7.x`; replace `.top` with explicit ActiveRecord grouping |
+| `active_admin_import` | Older releases can constrain ActiveAdmin/import dependencies below Rails 8-compatible versions | Update to a Rails 8-compatible major; verify import flows in ActiveAdmin request specs |
+| `active_storage_validations` | Older releases may pull stale Active Storage assumptions | Update with Rails/Active Storage when the lockfile is promoted |
+| `delayed_job` / `delayed_job_active_record` | Old releases constrained ActiveSupport/ActiveRecord below Rails 8 | Use releases that allow Rails 8 and verify persisted queued jobs deserialize |
+| `rack`, `rack-session`, `rackup`, `rack-cors` | Main lockfile can remain on Rack 2-era versions after promotion if stale constraints remain | Verify Rack 3-family versions explicitly and update the Rack family with targeted `bundle update` commands |
+
+When replacing Groupdate's old `.top` helper, preserve the existing return shape
+with plain ActiveRecord:
+
+```ruby
+relation.group(column).reorder(Arel.sql("COUNT(*) DESC")).limit(limit).count
+```
+
+If no limit was previously used, skip the `limit` call but keep the explicit
+`group` and `COUNT(*) DESC` ordering.
 
 ---
 
