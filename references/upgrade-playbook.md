@@ -232,21 +232,14 @@ next --init
 
 This creates `Gemfile.next` and a helper method `NextRails.next?`.
 
-**Alternative: `eval_gemfile` pattern (no helper gem needed)**
+### Alternative: separate Gemfile (no helper gem needed)
 
-If you prefer not to use `next_rails`, create `Gemfile.next` manually using
-`eval_gemfile` to inherit the base Gemfile and only override the Rails pin:
-
-```ruby
-# Gemfile.next
-eval_gemfile "Gemfile"
-
-gem "rails", "~> 8.0.0"
-# Add temporary compatibility pins here only if needed.
-```
-
-This approach is simpler for apps where the base Gemfile does not need
-conditional branches — just point `BUNDLE_GEMFILE=Gemfile.next` at it.
+Copy the current Gemfile to `Gemfile.next` and its lockfile to
+`Gemfile.next.lock`. Change the single Rails requirement in `Gemfile.next`,
+then resolve only Rails and necessary compatibility dependencies. Keep shared
+dependencies in sync while dual boot is active. Do not use `eval_gemfile` and
+then redeclare Rails with a different requirement: Bundler rejects the duplicate.
+Run both bundles through `BUNDLE_GEMFILE` and the same application test commands.
 
 ### 3.2 Edit Gemfile to conditionally pin Rails version (next_rails path)
 

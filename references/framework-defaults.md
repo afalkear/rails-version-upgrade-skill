@@ -125,8 +125,15 @@ These change security, encryption, session, or callback behaviour:
 - `config.action_controller.action_on_path_relative_redirect = :raise`
 - `config.action_controller.escape_json_responses = false`
 - `config.action_view.remove_hidden_field_autocomplete = true`
+- `config.action_view.render_tracker = :ruby`
+- `config.active_support.escape_js_separators_in_json = false`
 - `config.active_record.raise_on_missing_required_finder_order_columns = true`
 - `config.yjit = !Rails.env.local?`
+
+High risk: review path-relative redirects and JSON embedded in scripts/HTML.
+Medium risk: test hidden-field selectors, partial-select finder ordering and
+fragment-cache dependency tracking. Check YJIT only on a supporting runtime.
+Source: [8.1 defaults](https://github.com/rails/rails/blob/v8.1.3.1/railties/lib/rails/application/configuration.rb).
 
 ### Rails 8.0 new defaults
 - `Regexp.timeout = 1`
