@@ -110,15 +110,14 @@ else
 end
 ```
 
-### Option B: `eval_gemfile`
+### Alternative: separate Gemfile (no helper gem needed)
 
-```ruby
-# Gemfile.next
-eval_gemfile "Gemfile"
-
-gem "rails", "~> 8.0.0"
-# Add temporary compatibility pins here only when necessary.
-```
+Copy the current Gemfile to `Gemfile.next` and its lockfile to
+`Gemfile.next.lock`. Change the single Rails requirement in `Gemfile.next`,
+then resolve only Rails and necessary compatibility dependencies. Keep shared
+dependencies in sync while dual boot is active. Do not use `eval_gemfile` and
+then redeclare Rails with a different requirement: Bundler rejects the duplicate.
+Run both bundles through `BUNDLE_GEMFILE` and the same application test commands.
 
 Install both variants:
 
@@ -232,8 +231,10 @@ enum :status, { active: 0, archived: 1 }, default: :active
 ### Active Job
 
 - [ ] Remove `config.active_job.use_big_decimal_serializer`.
-- [ ] Replace or consciously defer `enqueue_after_transaction_commit`, which is
-      deprecated in Rails 8.0.
+- [ ] Review the deprecated global
+      `config.active_job.enqueue_after_transaction_commit` and symbolic job-class
+      values. Use the job class boolean attribute for explicit behavior; the
+      attribute itself is not removed.
 - [ ] Verify jobs enqueued inside database transactions still run after commit
       as intended.
 

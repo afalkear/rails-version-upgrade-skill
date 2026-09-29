@@ -114,6 +114,21 @@ end
 
 **Official guide**: https://guides.rubyonrails.org/upgrading_ruby_on_rails.html#upgrading-from-rails-7-0-to-rails-7-1
 
+**Minimum Ruby**: 2.7.0.
+
+### Preflight and validation
+
+Keep `config.load_defaults 7.0` for the framework-only hop. Run the same full
+suite on both bundles, including JavaScript tests. Rails 7.1's full `rails test`
+command invokes `test:prepare`, whereas a single test-file invocation does not;
+verify any asset preparation hooks instead of using focused tests as a baseline.
+Test existing encrypted records, cookies, cached values and queued jobs before
+enabling 7.1 defaults. Preserve the cache format on the first rolling deployment.
+`config.autoload_lib`, Docker generation and new JavaScript tooling are optional.
+
+Sources: [7.1 release notes](https://guides.rubyonrails.org/7_1_release_notes.html),
+[Railties changelog](https://github.com/rails/rails/blob/v7.1.6/railties/CHANGELOG.md).
+
 ### Notable breaking changes
 
 **`secret_key_base` file renamed**
@@ -121,10 +136,10 @@ end
 - Required action: rename the file or copy the key to avoid session/cookie
   invalidation in development and test.
 
-**`alias_attribute` no longer calls custom reader methods**
-- Required action: if you define a custom reader on an attribute and use
-  `alias_attribute` to alias it, replace with `alias_method` or define the
-  alias method manually.
+**`alias_attribute` deprecates calling custom reader methods**
+- Review custom readers reached through an attribute alias and replace that
+  delegation with explicit methods if needed. The behavior change takes effect
+  in 7.2; resolve its 7.1 warning before the next hop.
 
 **`config.action_dispatch.show_exceptions` values changed**
 - Old: `true` / `false`
@@ -284,22 +299,60 @@ params.expect(user: [:name, :email])
 
 **Minimum Ruby**: 3.2.0
 
+Keep `config.load_defaults 8.0` while validating the framework-only hop.
+
+### Removals and compatibility checks
+
+- Split routes declared with multiple paths into separate declarations. Test
+  webhook/query parsing: semicolons no longer separate query parameters and
+  leading brackets in parameter names are no longer discarded.
+- Remove `config.active_job.enqueue_after_transaction_commit`. Configure the
+  job class attribute with `true` or `false`; the values `:always`, `:never`,
+  and `:default` are removed. Choose the boolean by testing the intended
+  transaction behavior rather than blindly translating `:default`.
+- Custom Active Job serializers must expose a public `klass` method. If using
+  Sucker Punch, use its gem-provided adapter. Rails' built-in Sidekiq adapter
+  is deprecated, not removed in 8.1; verify the gem-provided adapter separately.
+- Active Storage's `:azure` service is removed. Applications using it need a
+  compatible replacement before upgrading; other apps need no storage migration.
+- Replace removed `STATS_DIRECTORIES`, `bin/rake stats`, and
+  `rails/console/methods.rb` usage with current statistics/console APIs.
+- Review removed MySQL `unsigned_float`/`unsigned_decimal` column methods and
+  SQLite's `:retries` option if present in schema/migration or adapter code.
+- Test time conversion at timezone/DST boundaries: `to_time` no longer offers
+  the old system-local-time behavior.
+
+Sources: [8.1 release notes](https://guides.rubyonrails.org/8_1_release_notes.html),
+[Action Pack changelog](https://github.com/rails/rails/blob/v8.1.3.1/actionpack/CHANGELOG.md),
+[Active Job changelog](https://github.com/rails/rails/blob/v8.1.3.1/activejob/CHANGELOG.md),
+[Active Storage changelog](https://github.com/rails/rails/blob/v8.1.3.1/activestorage/CHANGELOG.md),
+[Railties changelog](https://github.com/rails/rails/blob/v8.1.3.1/railties/CHANGELOG.md),
+[Active Record changelog](https://github.com/rails/rails/blob/v8.1.3.1/activerecord/CHANGELOG.md),
+[Active Support changelog](https://github.com/rails/rails/blob/v8.1.3.1/activesupport/CHANGELOG.md).
+
 ### Notable changes
 
 **`schema.rb` columns sorted alphabetically by default**
 - Active Record now alphabetically sorts table columns in `schema.rb`.
 - This may produce a large diff in your schema file on the first migrate.
-- Required action: run `bin/rails db:schema:dump` and commit the re-sorted file.
-  If you need exact column ordering, use `structure.sql` instead.
+- Review the next schema dump as expected ordering churn. Do not switch schema
+  formats solely to suppress this diff.
 
 ### New defaults in 8.1
 
 - `config.action_controller.action_on_path_relative_redirect = :raise`
 - `config.action_controller.escape_json_responses = false`
 - `config.action_view.remove_hidden_field_autocomplete = true`
+- `config.action_view.render_tracker = :ruby`
+- `config.active_support.escape_js_separators_in_json = false`
 - `config.active_record.raise_on_missing_required_finder_order_columns = true`
 - `config.yjit = !Rails.env.local?` — YJIT enabled by default in non-local
   environments. Disable with `config.yjit = false` if memory-constrained.
+
+Validate redirects with explicit relative paths, JSON embedded in HTML/scripts,
+hidden fields and fragment-cache dependencies before adopting these defaults.
+Job continuations and structured event reporting are optional features, not
+required rewrites of existing jobs or logging.
 
 ---
 
